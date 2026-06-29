@@ -22,3 +22,16 @@ def save_user_profile(sender, instance, **kwargs):
     if not hasattr(instance, 'profile'):
         Profile.objects.create(user=instance)
     instance.profile.save()
+
+class OTPVerification(models.Model):
+    user = models.OneToOneField(User, on_delete=models.CASCADE, related_name='otp_verification')
+    otp = models.CharField(max_length=6)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    def is_expired(self):
+        from django.utils import timezone
+        from datetime import timedelta
+        return timezone.now() > self.created_at + timedelta(minutes=10)
+
+    def __str__(self):
+        return f"{self.user.username} - {self.otp}"

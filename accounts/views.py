@@ -1,10 +1,15 @@
-from django.shortcuts import render, redirect
+from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth import login as auth_login, logout as auth_logout, authenticate
 from django.contrib.auth.forms import AuthenticationForm, PasswordChangeForm
 from django.contrib.auth.decorators import login_required
 from django.contrib import messages
 from django.contrib.auth import update_session_auth_hash
+from django.contrib.auth.models import User
+from django.core.mail import send_mail
+import random
+
 from .forms import UserSignUpForm, UserUpdateForm, ProfileUpdateForm
+from .models import OTPVerification
 from books.models import SavedBook
 
 def signup_view(request):
@@ -13,12 +18,59 @@ def signup_view(request):
     if request.method == 'POST':
         form = UserSignUpForm(request.POST)
         if form.is_valid():
-            user = form.save()
-            messages.success(request, f"Account created for {user.username}! You can now log in.")
-            return redirect('signin')
+            user = form.save(commit=False)
+            user.is_active = False # Deactivate user until OTP verified
+            user.save()
+            
+            # Generate 6-digit OTP
+            otp_code = str(random.randint(100000, 999999))
+            OTPVerification.objects.update_or_create(user=user, defaults={'otp': otp_code})
+            
+            # Try to send email, print to console if fails
+            try:
+                send_mail(
+                    subject="Bookverse - Verification Code",
+                    message=f"Hello {user.username},\n\nYour 6-digit verification code is: {otp_code}\n\nThis code will expire in 10 minutes.",
+                    from_email=None,
+                    recipient_list=[user.email],
+                    fail_silently=False
+                )
+                messages.info(request, "A verification code has been sent to your email address.")
+            except Exception as e:
+                # Console fallback so user can see it in terminal if credentials not set
+                print(f"\n=========================================\n[OTP Fallback] Code for {user.username} is: {otp_code}\n=========================================\n")
+                messages.warning(request, "We created your account but couldn't send the email. (Check server logs for code!)")
+                
+            return redirect('verify_otp', username=user.username)
     else:
         form = UserSignUpForm()
     return render(request, 'accounts/signup.html', {'form': form})
+
+def verify_otp_view(request, username):
+    user = get_object_or_404(User, username=username)
+    if user.is_active:
+        messages.info(request, "This account is already verified.")
+        return redirect('signin')
+        
+    if request.method == 'POST':
+        typed_otp = request.POST.get('otp', '').strip()
+        otp_record = getattr(user, 'otp_verification', None)
+        
+        if otp_record and otp_record.otp == typed_otp:
+            if otp_record.is_expired():
+                messages.error(request, "This verification code has expired. Please sign up again.")
+                return render(request, 'accounts/verify_otp.html', {'user': user, 'error': 'Code expired'})
+            
+            # Success
+            user.is_active = True
+            user.save()
+            otp_record.delete() # clean up
+            messages.success(request, f"Account for {user.username} has been verified successfully! You can now log in.")
+            return redirect('signin')
+        else:
+            messages.error(request, "Invalid verification code. Please try again.")
+            
+    return render(request, 'accounts/verify_otp.html', {'user': user})
 
 def signin_view(request):
     if request.user.is_authenticated:

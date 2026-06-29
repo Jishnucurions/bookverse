@@ -1,7 +1,7 @@
 from django.test import TestCase, Client
 from django.contrib.auth.models import User
 from django.urls import reverse
-from accounts.models import Profile
+from accounts.models import Profile, OTPVerification
 
 class AccountsTestCase(TestCase):
     def setUp(self):
@@ -34,8 +34,43 @@ class AccountsTestCase(TestCase):
             'password2': 'Password987!'
         }
         response = self.client.post(reverse('signup'), signup_data)
+        # Should redirect to verify_otp
         self.assertEqual(response.status_code, 302)
-        self.assertTrue(User.objects.filter(username='newuser').exists())
+        self.assertRedirects(response, reverse('verify_otp', args=['newuser']))
+        
+        # User should exist but be inactive
+        new_user = User.objects.get(username='newuser')
+        self.assertFalse(new_user.is_active)
+        
+        # OTP verification record should be created
+        otp_record = OTPVerification.objects.filter(user=new_user).first()
+        self.assertIsNotNone(otp_record)
+        self.assertEqual(len(otp_record.otp), 6)
+
+    def test_verify_otp_view_success(self):
+        # Create an inactive user and an OTP record
+        inactive_user = User.objects.create_user(
+            username="inactive",
+            email="inactive@example.com",
+            password="Password123!",
+            is_active=False
+        )
+        otp_record = OTPVerification.objects.create(user=inactive_user, otp="123456")
+        
+        # Post the correct OTP
+        post_data = {'otp': '123456'}
+        response = self.client.post(reverse('verify_otp', args=['inactive']), post_data)
+        
+        # Should redirect to signin
+        self.assertEqual(response.status_code, 302)
+        self.assertRedirects(response, reverse('signin'))
+        
+        # User should now be active
+        inactive_user.refresh_from_db()
+        self.assertTrue(inactive_user.is_active)
+        
+        # OTP record should be deleted
+        self.assertFalse(OTPVerification.objects.filter(user=inactive_user).exists())
 
     def test_signin_view_post_success(self):
         login_data = {
