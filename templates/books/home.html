@@ -1,0 +1,148 @@
+{% extends 'base.html' %}
+{% block title %}Dashboard - Bookverse{% endblock %}
+{% block content %}
+
+<!-- Hero Search Section -->
+<div class="hero-section">
+    <h1>Explore the <span class="hero-gradient-text">World of Books</span></h1>
+    <p>Discover details on millions of books and authors. Track your reading goals, manage your digital bookshelf, and more.</p>
+    
+    <div class="search-box-large">
+        <form method="GET" action="{% url 'search' %}">
+            <input type="text" name="q" class="form-control" placeholder="Search by title, author, or ISBN..." required autocomplete="off">
+            <button type="submit" class="search-btn-absolute" title="Search">
+                <i class="fa-solid fa-magnifying-glass"></i>
+            </button>
+        </form>
+    </div>
+</div>
+
+<!-- Reading Shelf Preview (If user has books) -->
+{% if shelf_preview %}
+<div class="shelf-preview-container">
+    <div class="shelf-preview-header">
+        <h2 style="font-size: 18px; font-weight: 700; display: flex; align-items: center; gap: 8px;">
+            <i class="fa-solid fa-bookmark" style="color: var(--primary);"></i>
+            Recently Added to My Shelf
+        </h2>
+        <a href="{% url 'profile_settings' %}" style="font-size: 13px; font-weight: 600; color: var(--secondary); display: flex; align-items: center; gap: 4px;">
+            View All Shelf <i class="fa-solid fa-arrow-right" style="font-size: 10px;"></i>
+        </a>
+    </div>
+    <div class="shelf-preview-list">
+        {% for item in shelf_preview %}
+        <div class="shelf-item-small">
+            {% if item.cover_id %}
+                <img src="https://covers.openlibrary.org/b/id/{{ item.cover_id }}-S.jpg" alt="Cover" class="shelf-item-cover">
+            {% else %}
+                <div class="shelf-item-cover" style="background: linear-gradient(135deg, hsla(263, 50%, 15%, 0.5), hsla(190, 50%, 15%, 0.5)); display: flex; align-items: center; justify-content: center; color: var(--primary);">
+                    <i class="fa-solid fa-book" style="font-size: 16px;"></i>
+                </div>
+            {% endif %}
+            <div class="shelf-item-info">
+                <a href="{% url 'book_detail' item.work_key %}" class="shelf-item-title">{{ item.title }}</a>
+                <div class="shelf-item-author">by {{ item.author_name|default:"Unknown Author" }}</div>
+                <div style="margin-top: 4px;">
+                    <span class="badge badge-{{ item.status }}">
+                        {{ item.get_status_display }}
+                    </span>
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+{% endif %}
+
+<!-- Science Fiction Category -->
+<div class="section-title">
+    <h2><i class="fa-solid fa-rocket" style="color: var(--primary); margin-right: 10px;"></i> Science Fiction Highlights</h2>
+    <span></span>
+</div>
+<div class="books-grid" id="scifi-grid">
+    <div style="grid-column: 1 / -1; text-align: center; padding: 48px; color: var(--text-muted);">
+        <i class="fa-solid fa-spinner fa-spin" style="font-size: 24px; color: var(--primary); margin-bottom: 12px; display: block;"></i>
+        <span>Exploring space-time...</span>
+    </div>
+</div>
+
+<!-- Fantasy Category -->
+<div class="section-title">
+    <h2><i class="fa-solid fa-wand-magic-sparkles" style="color: var(--primary); margin-right: 10px;"></i> Popular Fantasy Works</h2>
+    <span></span>
+</div>
+<div class="books-grid" id="fantasy-grid">
+    <div style="grid-column: 1 / -1; text-align: center; padding: 48px; color: var(--text-muted);">
+        <i class="fa-solid fa-spinner fa-spin" style="font-size: 24px; color: var(--primary); margin-bottom: 12px; display: block;"></i>
+        <span>Conjuring spells...</span>
+    </div>
+</div>
+
+<!-- Mystery Category -->
+<div class="section-title">
+    <h2><i class="fa-solid fa-magnifying-glass-chart" style="color: var(--primary); margin-right: 10px;"></i> Mystery & Thrillers</h2>
+    <span></span>
+</div>
+<div class="books-grid" id="mystery-grid">
+    <div style="grid-column: 1 / -1; text-align: center; padding: 48px; color: var(--text-muted);">
+        <i class="fa-solid fa-spinner fa-spin" style="font-size: 24px; color: var(--primary); margin-bottom: 12px; display: block;"></i>
+        <span>Decoding secrets...</span>
+    </div>
+</div>
+
+<!-- Dynamic AJAX Loading Script -->
+<script>
+    const loadCategory = (subjectCode, gridId) => {
+        const grid = document.getElementById(gridId);
+        fetch(`/api/subject/${subjectCode}/`)
+            .then(res => {
+                if (!res.ok) throw new Error("Network response error");
+                return res.json();
+            })
+            .then(data => {
+                grid.innerHTML = '';
+                if (data.books && data.books.length > 0) {
+                    data.books.forEach(book => {
+                        const card = document.createElement('div');
+                        card.className = 'book-card';
+                        
+                        const coverHtml = book.cover_id 
+                            ? `<img src="https://covers.openlibrary.org/b/id/${book.cover_id}-M.jpg" alt="${book.title}" class="book-cover" loading="lazy">`
+                            : `<div class="book-cover-placeholder">
+                                   <i class="fa-solid fa-book-open"></i>
+                                   <span style="font-size: 11px; padding: 0 8px;">${book.title.substring(0, 20)}</span>
+                               </div>`;
+                               
+                        card.innerHTML = `
+                            <a href="/book/${book.key}/" class="book-cover-wrapper">
+                                ${coverHtml}
+                            </a>
+                            <div class="book-info">
+                                <a href="/book/${book.key}/" class="book-title">${book.title}</a>
+                                <div class="book-author">by ${book.author}</div>
+                                <div class="book-meta">
+                                    <span><i class="fa-solid fa-calendar-days"></i> ${book.year}</span>
+                                    <span style="color: var(--secondary);"><i class="fa-solid fa-arrow-right"></i></span>
+                                </div>
+                            </div>
+                        `;
+                        grid.appendChild(card);
+                    });
+                } else {
+                    grid.innerHTML = `<div style="grid-column: 1 / -1; text-align: center; padding: 24px; color: var(--text-muted);"><i class="fa-solid fa-face-meh" style="display:block; font-size:24px; margin-bottom:8px;"></i>No recommendations available. Try searching.</div>`;
+                }
+            })
+            .catch(err => {
+                grid.innerHTML = `<div style="grid-column: 1 / -1; text-align: center; padding: 24px; color: var(--danger);"><i class="fa-solid fa-circle-exclamation" style="display:block; font-size:24px; margin-bottom:8px;"></i>Unable to load highlights. Please check connection.</div>`;
+            });
+    };
+
+    document.addEventListener('DOMContentLoaded', () => {
+        // Load in parallel
+        loadCategory('science_fiction', 'scifi-grid');
+        loadCategory('fantasy', 'fantasy-grid');
+        loadCategory('mystery', 'mystery-grid');
+    });
+</script>
+
+{% endblock %}

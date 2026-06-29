@@ -1,0 +1,223 @@
+{% extends 'base.html' %}
+{% block title %}Profile Settings - Bookverse{% endblock %}
+{% block content %}
+<div class="profile-layout">
+    
+    <!-- Sidebar -->
+    <div class="profile-sidebar">
+        <div class="profile-avatar-container">
+            {% if user.profile.profile_picture %}
+                <img src="{{ user.profile.profile_picture.url }}" alt="Profile Avatar" class="profile-avatar">
+            {% else %}
+                <div class="profile-avatar-placeholder">
+                    {{ user.username|slice:":1"|upper }}
+                </div>
+            {% endif %}
+        </div>
+        <h2 class="profile-name">{{ user.username }}</h2>
+        <p class="profile-email">{{ user.email }}</p>
+        
+        <div class="profile-details-list">
+            <div class="profile-detail-item">
+                <div class="profile-detail-label">Bio</div>
+                <div class="profile-detail-value">{{ user.profile.bio|default:"No bio written yet." }}</div>
+            </div>
+            <div class="profile-detail-item">
+                <div class="profile-detail-label">Favorite Genre</div>
+                <div class="profile-detail-value">
+                    <span class="badge" style="background: rgba(138, 43, 226, 0.15); color: var(--secondary); font-size: 12px; text-transform: none; border: 1.5px solid var(--primary);">
+                        {{ user.profile.favorite_genre|default:"Not specified" }}
+                    </span>
+                </div>
+            </div>
+            <div class="profile-detail-item">
+                <div class="profile-detail-label">Library Size</div>
+                <div class="profile-detail-value">{{ saved_books.count }} saved books</div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Settings Forms and Library -->
+    <div class="profile-settings-content">
+        
+        <!-- Tab navigation for Settings vs Reading List -->
+        <div class="settings-card">
+            <h3>Update Profile</h3>
+            <form method="POST" enctype="multipart/form-data">
+                {% csrf_token %}
+                <input type="hidden" name="action" value="update_profile">
+                
+                <div class="form-group">
+                    <label for="id_username">Username</label>
+                    {{ u_form.username }}
+                    {% if u_form.username.errors %}
+                        {% for error in u_form.username.errors %}<div class="form-error">{{ error }}</div>{% endfor %}
+                    {% endif %}
+                </div>
+                
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px;">
+                    <div class="form-group">
+                        <label for="id_first_name">First Name</label>
+                        {{ u_form.first_name }}
+                    </div>
+                    <div class="form-group">
+                        <label for="id_last_name">Last Name</label>
+                        {{ u_form.last_name }}
+                    </div>
+                </div>
+                
+                <div class="form-group">
+                    <label for="id_email">Email Address</label>
+                    {{ u_form.email }}
+                    {% if u_form.email.errors %}
+                        {% for error in u_form.email.errors %}<div class="form-error">{{ error }}</div>{% endfor %}
+                    {% endif %}
+                </div>
+                
+                <div class="form-group">
+                    <label for="id_favorite_genre">Favorite Genre</label>
+                    {{ p_form.favorite_genre }}
+                </div>
+                
+                <div class="form-group">
+                    <label for="id_bio">Bio</label>
+                    {{ p_form.bio }}
+                </div>
+                
+                <div class="form-group">
+                    <label>Profile Picture</label>
+                    <div class="file-upload-wrapper">
+                        <div class="file-upload-btn">
+                            <i class="fa-solid fa-cloud-arrow-up" style="color: var(--primary); font-size: 20px; margin-bottom: 6px; display: block;"></i>
+                            <span id="file-name-display" style="font-size: 13px; color: var(--text-secondary);">Click to choose image or drag & drop</span>
+                            {{ p_form.profile_picture }}
+                        </div>
+                    </div>
+                </div>
+                
+                <button type="submit" class="btn btn-primary" style="margin-top: 8px;">
+                    <i class="fa-solid fa-floppy-disk"></i> Save Profile Details
+                </button>
+            </form>
+        </div>
+        
+        <!-- Password Change Card -->
+        <div class="settings-card">
+            <h3>Change Password</h3>
+            <form method="POST">
+                {% csrf_token %}
+                <input type="hidden" name="action" value="change_password">
+                
+                {% for field in p_change_form %}
+                <div class="form-group">
+                    <label for="{{ field.id_for_label }}">{{ field.label }}</label>
+                    <input type="password" 
+                           name="{{ field.name }}" 
+                           id="{{ field.id_for_label }}"
+                           class="form-control" 
+                           placeholder="Enter {{ field.label|lower }}"
+                           required>
+                    {% if field.errors %}
+                        {% for error in field.errors %}
+                            <div class="form-error"><i class="fa-solid fa-triangle-exclamation"></i> {{ error }}</div>
+                        {% endfor %}
+                    {% endif %}
+                </div>
+                {% endfor %}
+                
+                <button type="submit" class="btn btn-secondary">
+                    <i class="fa-solid fa-key"></i> Update Password
+                </button>
+            </form>
+        </div>
+        
+        <!-- Personal Library / Reading List Tracker -->
+        <div class="settings-card">
+            <h3 style="display: flex; justify-content: space-between; align-items: center;">
+                <span>My Reading Shelf</span>
+                <span class="badge" style="background: rgba(255, 255, 255, 0.08); color: var(--text-secondary); text-transform: none;">{{ saved_books.count }} Books</span>
+            </h3>
+            
+            {% if saved_books %}
+                <div style="display: flex; flex-direction: column; gap: 16px; margin-top: 16px;">
+                    {% for book in saved_books %}
+                    <div style="background: rgba(255, 255, 255, 0.02); border: 1px solid var(--border-color); border-radius: var(--radius-md); padding: 16px; display: flex; gap: 20px; align-items: center; justify-content: space-between; flex-wrap: wrap;">
+                        <div style="display: flex; gap: 16px; align-items: center; flex: 1; min-width: 250px;">
+                            <a href="{% url 'book_detail' book.work_key %}">
+                                {% if book.cover_id %}
+                                    <img src="https://covers.openlibrary.org/b/id/{{ book.cover_id }}-M.jpg" alt="Cover" style="width: 50px; height: 75px; object-fit: cover; border-radius: var(--radius-sm); border: 1px solid var(--border-color);">
+                                {% else %}
+                                    <div style="width: 50px; height: 75px; border-radius: var(--radius-sm); background: linear-gradient(135deg, hsla(263, 50%, 15%, 0.5), hsla(190, 50%, 15%, 0.5)); display: flex; align-items: center; justify-content: center; font-size: 18px; color: var(--primary);">
+                                        <i class="fa-solid fa-book"></i>
+                                    </div>
+                                {% endif %}
+                            </a>
+                            <div style="overflow: hidden;">
+                                <a href="{% url 'book_detail' book.work_key %}" style="font-weight: 600; color: var(--text-primary); font-size: 15px; display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
+                                    {{ book.title }}
+                                </a>
+                                <span style="font-size: 13px; color: var(--text-secondary); display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
+                                    by {{ book.author_name|default:"Unknown Author" }}
+                                </span>
+                                <span style="font-size: 11px; color: var(--text-muted); display: block; margin-top: 4px;">
+                                    Added on {{ book.date_added|date:"M d, Y" }}
+                                </span>
+                            </div>
+                        </div>
+                        
+                        <div style="display: flex; align-items: center; gap: 16px; flex-wrap: wrap;">
+                            <!-- Status Selector -->
+                            <form method="POST" action="{% url 'update_book_status' book.id %}" style="display: flex; align-items: center;">
+                                {% csrf_token %}
+                                <select name="status" class="form-control" onchange="this.form.submit()" style="padding: 8px 12px; font-size: 13px; background: rgba(0, 0, 0, 0.2); width: 140px; border-radius: var(--radius-sm);">
+                                    <option value="to_read" {% if book.status == 'to_read' %}selected{% endif %}>To Read</option>
+                                    <option value="reading" {% if book.status == 'reading' %}selected{% endif %}>Reading</option>
+                                    <option value="completed" {% if book.status == 'completed' %}selected{% endif %}>Completed</option>
+                                </select>
+                            </form>
+                            
+                            <!-- Delete form -->
+                            <form method="POST" action="{% url 'toggle_save_book' %}">
+                                {% csrf_token %}
+                                <input type="hidden" name="work_key" value="{{ book.work_key }}">
+                                <input type="hidden" name="title" value="{{ book.title }}">
+                                <button type="submit" class="btn btn-secondary" style="padding: 10px; border-color: rgba(239, 68, 68, 0.3); color: var(--danger); border-radius: var(--radius-sm);" title="Remove from list">
+                                    <i class="fa-solid fa-trash-can"></i>
+                                </button>
+                            </form>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+            {% else %}
+                <div style="text-align: center; padding: 48px; border: 1.5px dashed var(--border-color); border-radius: var(--radius-md); margin-top: 16px;">
+                    <i class="fa-solid fa-book-bookmark" style="font-size: 40px; color: var(--text-muted); margin-bottom: 16px; display: block;"></i>
+                    <p style="color: var(--text-secondary); margin-bottom: 16px;">Your shelf is empty! Start adding books to your collection.</p>
+                    <a href="{% url 'search' %}" class="btn btn-primary">
+                        <i class="fa-solid fa-magnifying-glass"></i> Search Books
+                    </a>
+                </div>
+            {% endif %}
+        </div>
+        
+    </div>
+</div>
+
+<script>
+    // JS helper to show chosen profile image filename
+    const fileUploadInput = document.getElementById('profile-pic-upload');
+    const fileUploadText = document.getElementById('file-name-display');
+    if (fileUploadInput) {
+        fileUploadInput.addEventListener('change', (e) => {
+            const fileName = e.target.files[0]?.name;
+            if (fileName) {
+                fileUploadText.innerText = `Selected: ${fileName}`;
+                fileUploadText.style.color = 'var(--secondary)';
+            } else {
+                fileUploadText.innerText = 'Click to choose image or drag & drop';
+                fileUploadText.style.color = 'var(--text-secondary)';
+            }
+        });
+    }
+</script>
+{% endblock %}

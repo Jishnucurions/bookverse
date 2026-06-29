@@ -1,0 +1,66 @@
+{% extends 'base.html' %}
+{% block title %}Search Results - Bookverse{% endblock %}
+{% block content %}
+
+<div style="padding: 40px 0 20px;">
+    <h2 style="font-size: 28px; font-weight: 700; margin-bottom: 24px; text-align: center;">
+        Search Book Directory
+    </h2>
+    
+    <div class="search-box-large" style="margin-bottom: 48px;">
+        <form method="GET" action="{% url 'search' %}">
+            <input type="text" name="q" class="form-control" placeholder="Search title, author, or ISBN..." value="{{ query }}" required autocomplete="off">
+            <button type="submit" class="search-btn-absolute" title="Search">
+                <i class="fa-solid fa-magnifying-glass"></i>
+            </button>
+        </form>
+    </div>
+</div>
+
+{% if query %}
+    <div class="section-title">
+        <h2>Search results for "<span style="color: var(--secondary);">{{ query }}</span>"</h2>
+        <span></span>
+    </div>
+    
+    {% if results %}
+        <div class="books-grid">
+            {% for book in results %}
+            <div class="book-card">
+                <a href="{% url 'book_detail' book.key %}" class="book-cover-wrapper">
+                    {% if book.cover_id %}
+                        <img src="https://covers.openlibrary.org/b/id/{{ book.cover_id }}-M.jpg" alt="{{ book.title }}" class="book-cover" loading="lazy">
+                    {% else %}
+                        <div class="book-cover-placeholder">
+                            <i class="fa-solid fa-book-open"></i>
+                            <span style="font-size: 11px; padding: 0 8px;">{{ book.title|slice:":25" }}</span>
+                        </div>
+                    {% endif %}
+                </a>
+                <div class="book-info">
+                    <a href="{% url 'book_detail' book.key %}" class="book-title">{{ book.title }}</a>
+                    <div class="book-author">by {{ book.author }}</div>
+                    <div class="book-meta">
+                        <span><i class="fa-solid fa-calendar-days"></i> {{ book.year }}</span>
+                        <span style="color: var(--secondary);"><i class="fa-solid fa-arrow-right"></i></span>
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    {% else %}
+        <div style="text-align: center; padding: 80px 24px; background: var(--bg-card); border: 1px solid var(--border-color); border-radius: var(--radius-lg);">
+            <i class="fa-solid fa-face-frown" style="font-size: 48px; color: var(--text-muted); margin-bottom: 20px; display: block;"></i>
+            <h3 style="font-size: 20px; margin-bottom: 8px;">No Results Found</h3>
+            <p style="color: var(--text-secondary);">We couldn't find any books matching your search. Please check your spelling or try another keyword.</p>
+        </div>
+    {% endif %}
+{% else %}
+    <div style="text-align: center; padding: 80px 24px; background: var(--bg-card); border: 1px solid var(--border-color); border-radius: var(--radius-lg);">
+        <i class="fa-solid fa-book-open-reader" style="font-size: 48px; color: var(--primary); margin-bottom: 20px; display: block;"></i>
+        <h3 style="font-size: 20px; margin-bottom: 8px;">Find Your Next Read</h3>
+        <p style="color: var(--text-secondary);">Type a book title, author, or ISBN above to explore detailed summaries, covers, and authors from Open Library.</p>
+    </div>
+{% endif %}
+
+{% endblock %}

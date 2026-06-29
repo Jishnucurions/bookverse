@@ -1,0 +1,110 @@
+{% extends 'base.html' %}
+{% block title %}{{ book.title }} - Bookverse{% endblock %}
+{% block content %}
+
+<div style="padding-top: 24px;">
+    <!-- Back button -->
+    <a href="javascript:history.back()" style="display: inline-flex; align-items: center; gap: 8px; font-weight: 600; font-size: 14px; margin-bottom: 24px; color: var(--text-secondary);">
+        <i class="fa-solid fa-arrow-left"></i> Back to Explorer
+    </a>
+</div>
+
+<div class="book-detail-layout">
+    
+    <!-- Sidebar: Cover & Actions -->
+    <div class="book-detail-sidebar">
+        <div class="book-detail-cover-card">
+            {% if book.cover_id %}
+                <img src="https://covers.openlibrary.org/b/id/{{ book.cover_id }}-L.jpg" alt="{{ book.title }} Cover" class="book-detail-cover">
+            {% else %}
+                <div style="width: 100%; height: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center; background: linear-gradient(135deg, hsla(263, 50%, 15%, 0.5), hsla(190, 50%, 15%, 0.5)); border-radius: var(--radius-md); color: var(--text-secondary); text-align: center; padding: 24px;">
+                    <i class="fa-solid fa-book-open" style="font-size: 64px; color: var(--primary); margin-bottom: 16px;"></i>
+                    <span style="font-size: 16px; font-weight: 600;">No Cover Available</span>
+                </div>
+            {% endif %}
+        </div>
+        
+        <!-- Toggle Save Form -->
+        <form method="POST" action="{% url 'toggle_save_book' %}">
+            {% csrf_token %}
+            <input type="hidden" name="work_key" value="{{ book.key }}">
+            <input type="hidden" name="title" value="{{ book.title }}">
+            <input type="hidden" name="author_name" value="{% for author in book.authors %}{{ author.name }}{% if not forloop.last %}, {% endif %}{% empty %}Unknown Author{% endfor %}">
+            <input type="hidden" name="cover_id" value="{{ book.cover_id|default:'' }}">
+            
+            {% if saved_book %}
+                <button type="submit" class="btn btn-danger" style="width: 100%; padding: 14px;">
+                    <i class="fa-solid fa-trash-can"></i> Remove From Shelf
+                </button>
+            {% else %}
+                <button type="submit" class="btn btn-primary" style="width: 100%; padding: 14px;">
+                    <i class="fa-solid fa-plus"></i> Add to Reading Shelf
+                </button>
+            {% endif %}
+        </form>
+
+        <!-- Quick Status Update if Saved -->
+        {% if saved_book %}
+        <div class="settings-card" style="padding: 20px; border-radius: var(--radius-md);">
+            <h4 style="font-size: 14px; font-weight: 700; text-transform: uppercase; color: var(--text-muted); margin-bottom: 12px; display: flex; align-items: center; gap: 8px;">
+                <i class="fa-solid fa-circle-notch"></i> Reading Progress
+            </h4>
+            <form method="POST" action="{% url 'update_book_status' saved_book.id %}">
+                {% csrf_token %}
+                <div class="form-group" style="margin-bottom: 0;">
+                    <select name="status" class="form-control" onchange="this.form.submit()" style="background: rgba(0, 0, 0, 0.25); border-radius: var(--radius-sm); font-size: 14px;">
+                        <option value="to_read" {% if saved_book.status == 'to_read' %}selected{% endif %}>To Read</option>
+                        <option value="reading" {% if saved_book.status == 'reading' %}selected{% endif %}>Reading</option>
+                        <option value="completed" {% if saved_book.status == 'completed' %}selected{% endif %}>Completed</option>
+                    </select>
+                </div>
+            </form>
+            <div style="font-size: 12px; color: var(--text-muted); margin-top: 12px; text-align: center;">
+                Saved to your library on {{ saved_book.date_added|date:"M d, Y" }}
+            </div>
+        </div>
+        {% endif %}
+    </div>
+    
+    <!-- Content Area: Book Details -->
+    <div class="book-detail-info">
+        <h1 class="book-detail-title">{{ book.title }}</h1>
+        <div class="book-detail-authors">
+            by 
+            {% for author in book.authors %}
+                <span>{{ author.name }}</span>{% if not forloop.last %}, {% endif %}
+            {% empty %}
+                <span>Unknown Author</span>
+            {% endfor %}
+        </div>
+        
+        <div class="book-detail-desc-card">
+            <h3>Description</h3>
+            <p>{{ book.description|linebreaksbr }}</p>
+        </div>
+        
+        <div class="book-meta-grid">
+            <div class="book-meta-item">
+                <div style="font-size: 12px; color: var(--text-muted); text-transform: uppercase; font-weight: 600; margin-bottom: 4px;">First Published</div>
+                <div style="font-size: 16px; font-weight: 600; color: var(--text-primary);">{{ book.first_publish_date }}</div>
+            </div>
+            <div class="book-meta-item">
+                <div style="font-size: 12px; color: var(--text-muted); text-transform: uppercase; font-weight: 600; margin-bottom: 4px;">Open Library ID</div>
+                <div style="font-size: 14px; font-weight: 600; color: var(--secondary);">{{ book.key }}</div>
+            </div>
+        </div>
+        
+        {% if book.subjects %}
+        <div class="settings-card" style="background: transparent; border: none; padding: 0;">
+            <h3 style="font-size: 16px; font-weight: 700; margin-bottom: 12px; color: var(--text-secondary);">Subject Tags</h3>
+            <div class="tag-list">
+                {% for subject in book.subjects %}
+                    <span class="tag-item">{{ subject }}</span>
+                {% endfor %}
+            </div>
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+{% endblock %}

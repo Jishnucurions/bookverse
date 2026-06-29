@@ -1,0 +1,30 @@
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Database
+db.sqlite3
+db.sqlite3-journal
+
+# Media / Uploaded files
+media/
+
+# Virtual Environments
+.venv/
+venv/
+ENV/
+env/
+
+# IDE and Project config files
+.idea/
+.vscode/
+.DS_Store
+
+# Antigravity artifacts (if any are saved in workspace root)
+.gemini/
+brain/
+scratch/
+walkthrough.md
+implementation_plan.md
+task.md
