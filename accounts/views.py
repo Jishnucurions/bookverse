@@ -7,10 +7,38 @@ from django.contrib.auth import update_session_auth_hash
 from django.contrib.auth.models import User
 from django.core.mail import send_mail
 import random
+import os
+import requests
 
 from .forms import UserSignUpForm, UserUpdateForm, ProfileUpdateForm
 from .models import OTPVerification
 from books.models import SavedBook
+
+def send_otp_email(user, otp_code):
+    resend_api_key = os.environ.get('RESEND_API_KEY')
+    if resend_api_key:
+        url = "https://api.resend.com/emails"
+        headers = {
+            "Authorization": f"Bearer {resend_api_key}",
+            "Content-Type": "application/json"
+        }
+        payload = {
+            "from": "Bookverse <onboarding@resend.dev>",
+            "to": [user.email],
+            "subject": "Bookverse - Verification Code",
+            "html": f"<p>Hello {user.username},</p><p>Your 6-digit verification code is: <strong>{otp_code}</strong></p><p>This code will expire in 10 minutes.</p>"
+        }
+        response = requests.post(url, headers=headers, json=payload, timeout=5)
+        if response.status_code not in [200, 201]:
+            raise Exception(f"Resend API error: {response.text}")
+    else:
+        send_mail(
+            subject="Bookverse - Verification Code",
+            message=f"Hello {user.username},\n\nYour 6-digit verification code is: {otp_code}\n\nThis code will expire in 10 minutes.",
+            from_email=None,
+            recipient_list=[user.email],
+            fail_silently=False
+        )
 
 def signup_view(request):
     if request.user.is_authenticated:
@@ -28,13 +56,7 @@ def signup_view(request):
             
             # Try to send email, print to console if fails
             try:
-                send_mail(
-                    subject="Bookverse - Verification Code",
-                    message=f"Hello {user.username},\n\nYour 6-digit verification code is: {otp_code}\n\nThis code will expire in 10 minutes.",
-                    from_email=None,
-                    recipient_list=[user.email],
-                    fail_silently=False
-                )
+                send_otp_email(user, otp_code)
                 messages.info(request, "A verification code has been sent to your email address.")
             except Exception as e:
                 # Console fallback so user can see it in terminal if credentials not set
